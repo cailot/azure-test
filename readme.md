@@ -1,80 +1,53 @@
-# Hello World Rest API
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
 
-### Running the Application
+name: Build and deploy JAR app to Azure Web App - spring-azure-demo-01
 
-Run com.in28minutes.rest.webservices.restfulwebservices.RestfulWebServicesApplication as a Java Application.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-- http://localhost:8080/hello-world
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-```txt
-Hello World
-```
+    steps:
+      - uses: actions/checkout@v2
 
-- http://localhost:8080/hello-world-bean
+      - name: Set up Java version
+        uses: actions/setup-java@v1
+        with:
+          java-version: '8'
 
-```json
-{"message":"Hello World"}
-```
+      - name: Build with Maven
+        run: mvn clean install
 
-- http://localhost:8080/hello-world/path-variable/in28minutes
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v2
+        with:
+          name: java-app
+          path: '${{ github.workspace }}/target/*.jar'
 
-```json
-{"message":"Hello World, in28minutes"}
-```
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v2
+        with:
+          name: java-app
 
-### Plugin configuration
-
-```
-<plugin>
-	<groupId>com.microsoft.azure</groupId>
-	<artifactId>azure-webapp-maven-plugin</artifactId>
-	<version>1.7.0</version>
-</plugin>
-```
-				
-### Azure CLI
-
-- https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest
-
-### Final Plugin Configuration
-```
-<plugin>
-	<groupId>com.microsoft.azure</groupId>
-	<artifactId>azure-webapp-maven-plugin</artifactId>
-	<version>1.7.0</version>
-	<configuration>
-		<schemaVersion>V2</schemaVersion>
-		<resourceGroup>hello-world-rest-api-rg</resourceGroup>
-		<appName>hello-world-rest-api-in28minutes</appName>
-		<pricingTier>B1</pricingTier>
-		<region>westeurope</region>
-		<appSettings>
-			<property>
-				<name>JAVA_OPTS</name>
-				<value>-Dserver.port=80</value>
-			</property>
-		</appSettings>
-		<runtime>
-			<os>linux</os>
-			<javaVersion>java11</javaVersion>
-			<webContainer>java11</webContainer>
-		</runtime>
-		<deployment>
-			<resources>
-				<resource>
-					<directory>${project.basedir}/target</directory>
-					<includes>
-						<include>*.jar</include>
-					</includes>
-				</resource>
-			</resources>
-		</deployment>
-	</configuration>
-</plugin>
-
-```
-### Logging Configuration
-
-```
--Dlogging.level.org.springframework=DEBUG
-```
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'spring-azure-demo-01'
+          slot-name: 'production'
+          publish-profile: ${{ secrets.AzureAppService_PublishProfile_38fe29109d144f4fbfa1ae5386444f29 }}
+          package: '*.jar'
